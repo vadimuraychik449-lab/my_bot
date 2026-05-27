@@ -13,8 +13,10 @@ if not TOKEN:
     print("❌ ОШИБКА: TELEGRAM_TOKEN не задан!")
     sys.exit(1)
 
+# Создаём Application
 application = Application.builder().token(TOKEN).build()
 
+# --- Команды бота ---
 async def start(update, context):
     await update.message.reply_text(
         "👋 Привет! Я бот на Render.com!\n"
@@ -36,28 +38,37 @@ async def echo(update, context):
         "Используйте команды: /start или /info"
     )
 
+# Регистрируем обработчики
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("info", info))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
+# --- Вебхук эндпоинт ---
 @app.route(f"/webhook/{TOKEN}", methods=["POST"])
 def webhook():
     try:
-        update = Update.de_json(request.get_json(force=True), application.bot)
-        application.process_update(update)
+        # Получаем обновление от Telegram
+        update_data = request.get_json(force=True)
+        update = Update.de_json(update_data, application.bot)
+        
+        # Запускаем асинхронную обработку в фоне
+        asyncio.create_task(application.process_update(update))
         return "ok", 200
     except Exception as e:
-        print(f"Ошибка обработки: {e}")
+        print(f"Ошибка обработки вебхука: {e}")
         return "error", 500
 
+# --- Health check ---
 @app.route("/health")
 def health():
     return "OK", 200
 
+# --- Главная страница ---
 @app.route("/")
 def index():
     return "🤖 Бот работает!"
 
+# --- Установка вебхука при запуске ---
 async def setup_webhook():
     render_url = os.environ.get("RENDER_EXTERNAL_URL")
     if not render_url:
@@ -72,9 +83,10 @@ async def setup_webhook():
     except Exception as e:
         print(f"❌ Ошибка установки webhook: {e}")
 
+# --- Точка входа ---
 if __name__ == "__main__":
-    print("9. Запуск main...")
+    print("🚀 Запуск бота...")
     asyncio.run(setup_webhook())
     port = int(os.environ.get("PORT", 10000))
-    print(f"10. Запуск сервера на порту {port}")
+    print(f"✅ Сервер запущен на порту {port}")
     app.run(host="0.0.0.0", port=port)
