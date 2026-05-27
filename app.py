@@ -1,48 +1,20 @@
 import os
 import sys
-
-print("1. Начало загрузки...")
-
-try:
-    from flask import Flask, request
-    print("2. Flask импортирован")
-except Exception as e:
-    print(f"Ошибка импорта Flask: {e}")
-    sys.exit(1)
-
-try:
-    from telegram import Bot, Update
-    print("3. telegram.Bot и Update импортированы")
-except Exception as e:
-    print(f"Ошибка импорта telegram: {e}")
-    sys.exit(1)
-
-try:
-    from telegram.ext import Application, CommandHandler, MessageHandler, filters
-    print("4. Application и обработчики импортированы")
-except Exception as e:
-    print(f"Ошибка импорта telegram.ext: {e}")
-    sys.exit(1)
+import asyncio
+from flask import Flask, request
+from telegram import Bot, Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 app = Flask(__name__)
-print("5. Flask app создан")
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-print(f"6. Токен получен: {TOKEN[:10] if TOKEN else 'None'}...")
 
 if not TOKEN:
     print("❌ ОШИБКА: TELEGRAM_TOKEN не задан!")
     sys.exit(1)
 
-# Создаём Application
-try:
-    application = Application.builder().token(TOKEN).build()
-    print("7. Application успешно создан")
-except Exception as e:
-    print(f"Ошибка создания Application: {e}")
-    sys.exit(1)
+application = Application.builder().token(TOKEN).build()
 
-# --- Команды бота ---
 async def start(update, context):
     await update.message.reply_text(
         "👋 Привет! Я бот на Render.com!\n"
@@ -67,7 +39,6 @@ async def echo(update, context):
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("info", info))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-print("8. Обработчики зарегистрированы")
 
 @app.route(f"/webhook/{TOKEN}", methods=["POST"])
 def webhook():
@@ -86,6 +57,7 @@ def health():
 @app.route("/")
 def index():
     return "🤖 Бот работает!"
+
 async def setup_webhook():
     render_url = os.environ.get("RENDER_EXTERNAL_URL")
     if not render_url:
@@ -100,6 +72,9 @@ async def setup_webhook():
     except Exception as e:
         print(f"❌ Ошибка установки webhook: {e}")
 
+if __name__ == "__main__":
+    print("9. Запуск main...")
+    asyncio.run(setup_webhook())
     port = int(os.environ.get("PORT", 10000))
     print(f"10. Запуск сервера на порту {port}")
     app.run(host="0.0.0.0", port=port)
