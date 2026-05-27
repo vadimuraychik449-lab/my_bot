@@ -86,8 +86,7 @@ def health():
 @app.route("/")
 def index():
     return "🤖 Бот работает!"
-
-def setup_webhook():
+async def setup_webhook():
     render_url = os.environ.get("RENDER_EXTERNAL_URL")
     if not render_url:
         print("⚠️ RENDER_EXTERNAL_URL не найден, пропускаем установку вебхука")
@@ -96,14 +95,11 @@ def setup_webhook():
     webhook_url = f"{render_url}/webhook/{TOKEN}"
     try:
         bot = Bot(token=TOKEN)
-        bot.set_webhook(webhook_url)
+        await bot.set_webhook(webhook_url)
         print(f"✅ Webhook установлен: {webhook_url}")
     except Exception as e:
         print(f"❌ Ошибка установки webhook: {e}")
 
-if __name__ == "__main__":
-    print("9. Запуск main...")
-    setup_webhook()
     port = int(os.environ.get("PORT", 10000))
     print(f"10. Запуск сервера на порту {port}")
     app.run(host="0.0.0.0", port=port)
