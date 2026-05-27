@@ -27,7 +27,6 @@ except Exception as e:
 app = Flask(__name__)
 print("5. Flask app создан")
 
-# Получаем токен из переменной окружения
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 print(f"6. Токен получен: {TOKEN[:10] if TOKEN else 'None'}...")
 
@@ -35,7 +34,7 @@ if not TOKEN:
     print("❌ ОШИБКА: TELEGRAM_TOKEN не задан!")
     sys.exit(1)
 
-# Создаем приложение (Application вместо Dispatcher)
+# Создаём Application
 try:
     application = Application.builder().token(TOKEN).build()
     print("7. Application успешно создан")
@@ -65,13 +64,11 @@ async def echo(update, context):
         "Используйте команды: /start или /info"
     )
 
-# Регистрируем обработчики
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("info", info))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 print("8. Обработчики зарегистрированы")
 
-# Вебхук эндпоинт
 @app.route(f"/webhook/{TOKEN}", methods=["POST"])
 def webhook():
     try:
@@ -82,17 +79,14 @@ def webhook():
         print(f"Ошибка обработки: {e}")
         return "error", 500
 
-# Health check
 @app.route("/health")
 def health():
     return "OK", 200
 
-# Главная страница
 @app.route("/")
 def index():
     return "🤖 Бот работает!"
 
-# Установка вебхука при запуске
 def setup_webhook():
     render_url = os.environ.get("RENDER_EXTERNAL_URL")
     if not render_url:
