@@ -1,15 +1,20 @@
 import os
-import threading
-from flask import Flask, request, jsonify
+import json
+from flask import Flask, request
 from telegram import Bot, Update
-from telegram.ext import Dispatcher, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 app = Flask(__name__)
 
-# Токен бота (из переменной окружения, настроим позже на Render)
+# Получаем токен из переменной окружения
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-bot = Bot(token=TOKEN)
-dispatcher = Dispatcher(bot, None, use_context=True)
+
+if not TOKEN:
+    print("❌ ОШИБКА: TELEGRAM_TOKEN не задан!")
+    exit(1)
+
+# Создаем приложение (Application вместо Dispatcher)
+application = Application.builder().token(TOKEN).build()
 
 # --- Команды бота ---
 async def start(update, context):
@@ -33,37 +38,49 @@ async def echo(update, context):
         "Используйте команды: /start или /info"
     )
 
-# Регистрируем обработчики команд
-dispatcher.add_handler(CommandHandler("start", start))
-dispatcher.add_handler(CommandHandler("info", info))
-dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+# Регистрируем обработчики
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("info", info))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-# Эндпоинт для вебхуков (Telegram будет отправлять сюда обновления)
+# Вебхук эндпоинт
 @app.route(f"/webhook/{TOKEN}", methods=["POST"])
 def webhook():
-    if request.method == "POST":
+    try:
         update = Update.de_json(request.get_json(force=True), bot)
-        threading.Thread(target=lambda: dispatcher.process_update(update)).start()
+        application.process_update(update)
         return "ok", 200
+    except Exception as e:
+        print(f"Ошибка обработки: {e}")
+        return "error", 500
 
-# Health check для Render (чтобы не падал)
+# Health check
 @app.route("/health")
 def health():
     return "OK", 200
 
+# Главная страница
 @app.route("/")
 def index():
     return "🤖 Бот работает!"
 
+# Установка вебхука при запуске
 def setup_webhook():
-    """Устанавливаем вебхук после запуска бота"""
-    webhook_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/webhook/{TOKEN}"
-    bot.set_webhook(webhook_url)
-    print(f"✅ Webhook установлен: {webhook_url}")
+    render_url = os.environ.get("RENDER_EXTERNAL_URL")
+    if not render_url:
+        print("⚠️ RENDER_EXTERNAL_URL не найден, пропускаем установку вебхука")
+        return
+    
+    webhook_url = f"{render_url}/webhook/{TOKEN}"
+    try:
+        bot = Bot(token=TOKEN)
+        bot.set_webhook(webhook_url)
+        print(f"✅ Webhook установлен: {webhook_url}")
+    except Exception as e:
+        print(f"❌ Ошибка установки webhook: {e}")
 
 if __name__ == "__main__":
-    # Устанавливаем вебхук при запуске
+    print(f"🚀 Запуск бота с токеном: {TOKEN[:10]}...")
     setup_webhook()
-    
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
