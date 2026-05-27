@@ -1,20 +1,47 @@
 import os
-import json
-from flask import Flask, request
-from telegram import Bot, Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+import sys
+
+print("1. Начало загрузки...")
+
+try:
+    from flask import Flask, request
+    print("2. Flask импортирован")
+except Exception as e:
+    print(f"Ошибка импорта Flask: {e}")
+    sys.exit(1)
+
+try:
+    from telegram import Bot, Update
+    print("3. telegram.Bot и Update импортированы")
+except Exception as e:
+    print(f"Ошибка импорта telegram: {e}")
+    sys.exit(1)
+
+try:
+    from telegram.ext import Application, CommandHandler, MessageHandler, filters
+    print("4. Application и обработчики импортированы")
+except Exception as e:
+    print(f"Ошибка импорта telegram.ext: {e}")
+    sys.exit(1)
 
 app = Flask(__name__)
+print("5. Flask app создан")
 
 # Получаем токен из переменной окружения
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
+print(f"6. Токен получен: {TOKEN[:10] if TOKEN else 'None'}...")
 
 if not TOKEN:
     print("❌ ОШИБКА: TELEGRAM_TOKEN не задан!")
-    exit(1)
+    sys.exit(1)
 
 # Создаем приложение (Application вместо Dispatcher)
-application = Application.builder().token(TOKEN).build()
+try:
+    application = Application.builder().token(TOKEN).build()
+    print("7. Application успешно создан")
+except Exception as e:
+    print(f"Ошибка создания Application: {e}")
+    sys.exit(1)
 
 # --- Команды бота ---
 async def start(update, context):
@@ -42,12 +69,13 @@ async def echo(update, context):
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("info", info))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+print("8. Обработчики зарегистрированы")
 
 # Вебхук эндпоинт
 @app.route(f"/webhook/{TOKEN}", methods=["POST"])
 def webhook():
     try:
-        update = Update.de_json(request.get_json(force=True), bot)
+        update = Update.de_json(request.get_json(force=True), application.bot)
         application.process_update(update)
         return "ok", 200
     except Exception as e:
@@ -80,7 +108,8 @@ def setup_webhook():
         print(f"❌ Ошибка установки webhook: {e}")
 
 if __name__ == "__main__":
-    print(f"🚀 Запуск бота с токеном: {TOKEN[:10]}...")
+    print("9. Запуск main...")
     setup_webhook()
     port = int(os.environ.get("PORT", 10000))
+    print(f"10. Запуск сервера на порту {port}")
     app.run(host="0.0.0.0", port=port)
